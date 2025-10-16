@@ -1,0 +1,240 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage{hhline}
+\usepackage{url}
+\usepackage{hyperref}
+
+
+
+\title{\textbf{Informe de Simulación de Arquitecturas de Memoria Caché}}
+\author{Samuel Primera    C.I: 31.129.684
+Samuel Reyna       C.I.:30.210.759}
+\date{\today}
+
+\begin{document}
+
+\begin{titlepage}
+    \centering
+    \vspace*{1in}
+    {\Huge \textbf{Informe Técnico} \par}
+    \vspace{0.5in}
+    {\Huge \textbf{Simulador de Arquitecturas de Memoria Caché} \par}
+    \vspace{1.5in}
+    {\Large \textbf{Diseño, Implementación y Análisis} \par}
+    \vspace{1in}
+    {\Large \textbf{Autores:} Samuel Primera    C.I: 31.129.684
+Samuel Reyna       C.I.:30.210.759 \par}
+    \vspace{0.5in}
+    {\Large \textbf{Fecha:} \today \par}
+\end{titlepage}
+
+\maketitle
+\thispagestyle{empty}
+\clearpage
+
+
+\setcounter{page}{1}
+
+\section{Descripción del Problema y Objetivos}
+El objetivo principal del proyecto es \textbf{diseñar e implementar un simulador de caché en C++ (utilizando STL) para modelar y comparar arquitecturas de memoria caché}.
+
+\subsection{Arquitecturas a Simular}
+El simulador debe modelar las siguientes arquitecturas:
+\begin{itemize}
+    \item Correspondencia Directa.
+    \item Asociativa por N vías.
+\end{itemize}
+
+\subsection{Entrada y Métricas de Evaluación}
+El simulador procesa una secuencia de direcciones de memoria como entrada. Los resultados clave para la comparación de rendimiento son las \textbf{Estadísticas de Aciertos y Fallos}.
+
+\subsection{Requisito Avanzado}
+El diseño debe considerar la evaluación de \textbf{técnicas de anticipación de carga de datos} para explotar la localidad de referencia y determinar su impacto en la tasa de fallos de la caché.
+
+\section{Manejo y Estructuras de Datos}
+La implementación de la simulación de caché se basa en una jerarquía de clases que utiliza tipos de datos específicos para la configuración, las estadísticas y la representación interna de las memorias.
+
+\subsection{Comparativa de Estructuras}
+La siguiente tabla resume las estructuras principales para cada tipo de caché:
+\begin{longtable}{|p{3.5cm}|p{6cm}|p{6cm}|}
+\hline
+\textbf{Característica} & \textbf{Caché de Correspondencia Directa} & \textbf{Caché Asociativa por N Vías (LRU)} \\
+\hline
+\endhead
+Estructura Principal & Vector simple de enteros (\textit{etiquetas}) & Dos Matrices Bidimensionales (\textit{Vector de Vectores}): \textit{etiquetas} y \textit{tiempoLRU} \\
+\hline
+Cálculo del Índice & Posición única basada en el número total de bloques: $indice = \text{(etiqueta)} \bmod (\text{numBloques})$ . & Posición del conjunto basada en el número de conjuntos: $indice = \text{(etiqueta)} \bmod (\text{numConjuntos})$  \\
+\hline
+Dimensiones & Tamaño: \textit{numBloques}. & Dimensiones: \textit{numVias} (filas) $\times$ \textit{numConjuntos} (columnas). \\
+\hline
+Propósito de etiquetas & Almacenar la etiqueta del bloque cargado . & Almacenar la etiqueta del bloque cargado (\textit{etiquetas[via][conjunto]}). \\
+\hline
+Inicialización de etiquetas & Se llena con $-1$ (vacío). & Se llena con $-1$ (vacío). \\
+\hline
+Estructura de Reemplazo & No aplica: la posición es fija. & Matriz \textit{tiempoLRU} (inicializada con 0). \\
+\hline
+Lógica de Reemplazo & El bloque existente es siempre reemplazado por el nuevo. & LRU: Se busca la vía dentro del conjunto con el menor valor en \textit{tiempoLRU} (el menos usado) para reemplazar. \\
+\hline
+Actualización en Acierto & No hay seguimiento de tiempo. & El valor en \textit{tiempoLRU} se actualiza al contador actual de accesos. \\
+\hline
+\end{longtable}
+
+\subsection{Jerarquía de Clases y Estructuras Específicas}
+
+\subsubsection{Clase Base \texttt{Cache}}
+Gestiona parámetros de configuración (\texttt{numBloques}, \texttt{tamBloque}, tipo \texttt{int}) y métricas de rendimiento (contadores de accesos, aciertos y fallos, tipo \texttt{long long}, inicializados a cero). Recibe direcciones de memoria como cadenas de texto (\texttt{string}) denominadas \texttt{direccionBin}.
+
+\subsubsection{Clase \texttt{CacheDirecta}}
+Implementación específica para Correspondencia Directa.
+\begin{itemize}
+    \item Estructura: Un \textbf{vector de enteros} (\texttt{vector<int>}) llamado \texttt{etiquetas}, con tamaño igual a \texttt{numBloques}.
+    \item Inicialización: Todas las posiciones se inicializan con el valor \textbf{$-1$} (vacío).
+\end{itemize}
+
+\subsubsection{Clase \texttt{CacheAsociativa}}
+Implementación para N Vías con política LRU.
+\begin{itemize}
+    \item Estructuras: Dos \textbf{matrices bidimensionales} (\texttt{vector<vector<int>>}) paralelas:
+    \begin{enumerate}
+        \item \texttt{etiquetas}: Almacena la etiqueta del bloque en la posición \texttt{etiquetas[via][conjunto]}. Se inicializa con \textbf{$-1$}.
+        \item \texttt{tiempoLRU}: Almacena el valor del último acceso. Se inicializa con \textbf{0}.
+    \end{enumerate}
+    \item Parámetros Internos: \texttt{numVias} y \texttt{numConjuntos} (este último calculado como $\text{numBloques}/\text{vias}$).
+\end{itemize}
+
+\section{Justificaciones de Diseño}
+
+\subsection{Uso de Herencia}
+Se optó por utilizar la herencia para simplificar y reutilizar código.
+\begin{itemize}
+    \item \textbf{Diferencia en Complejidad y Estructuras}: Los métodos de acceso son lo suficientemente diferentes para requerir implementaciones separadas. El direccionamiento asociativo requiere dos matrices paralelas (etiquetas y seguimiento de accesos), mientras que el directo solo necesita un único vector para etiquetas. El método asociativo presenta un \textbf{orden de complejidad algorítmica y estructural significativamente mayor} que el directo.
+    \item \textbf{Simplificación y Reutilización}: Una \textbf{clase abstracta} (\texttt{Cache}) unifica funciones y atributos comunes (estadísticas y parámetros de configuración). Las clases hijas (\texttt{CacheDirecta} y \texttt{CacheAsociativa}) solo implementan las funciones y estructuras de datos específicas de su método.
+\end{itemize}
+
+\subsection{Uso de Números Enteros vs. Binarios}
+Se optó por números enteros ya que resultan \textbf{más fáciles de comprender y operar} beneficiosos para el equipo.
+\begin{itemize}
+    \item Trabajar con binarios requeriría nuevas clases y estructuras auxiliares para facilitar su manejo y operaciones como el desplazamiento de bits.
+    \item Las estructuras de datos nativas de C++ (vectores y matrices) están optimizadas para índices enteros, lo que haría necesaria una \textbf{transformación de binario a entero} de todos modos para acceder a dichas estructuras.
+\end{itemize}
+
+\subsection{Parámetros de Entrada}
+Se toman como entrada el número de vías, el número de bloques y su tamaño (además de las direcciones). Esto se debe a que son necesarios para determinar el método de mapeo (directo si \textit{vias}=1, asociativo si es mayor) y el diseño de la caché, lo cual afecta significativamente a la tasa de aciertos. Permite al usuario configurar y probar el simulador sin manipular el código fuente .
+
+\section{Algoritmos Implementados}
+
+\subsection{\texttt{Cache} (Clase Abstracta)}
+\begin{itemize}
+    \item \texttt{Cache(int nBloques, int tBloque)}: Constructor que inicializa \texttt{numBloques} y \texttt{tamBloque}.
+    \item \texttt{accederDireccion(const string \&direccionBin)}: \textbf{Función virtual abstracta} para manejar el acceso a memoria.
+    \item \texttt{getEtiqueta(const string \&direccionBin)}: Calcula la \textbf{etiqueta (tag)} del bloque. Convierte la dirección binaria a entero y la divide por \texttt{tamBloque} .
+    \item \texttt{estadisticas()}: Imprime las estadísticas de rendimiento (accesos, aciertos, fallos, tasas).
+\end{itemize}
+
+\subsection{\texttt{CacheDirecta} (Direccionamiento Directo)}
+\begin{itemize}
+    \item \texttt{CacheDirecta(int nBloques, int tBloque)}: Inicializa el vector de etiquetas al tamaño de \texttt{numBloques} con el valor \textbf{$-1$}.
+    \item \texttt{accederDireccion(const string \&direccionBin)}: Implementa el Algoritmo de Mapeo Directo. Calcula el índice ($\text{etiqueta} \bmod \text{numBloques}$) y verifica acierto/fallo. En caso de fallo, \textbf{reemplaza forzosamente} la etiqueta.
+\end{itemize}
+
+\subsection{\texttt{CacheAsociativa} (N Vías - LRU)}
+\begin{itemize}
+    \item \texttt{redimensionar(int vias, int nBloques)}: Calcula $\text{numConjuntos} = \text{nBloques}/\text{vias}$ y redimensiona las matrices \texttt{etiquetas} ($\rightarrow -1$) y \texttt{tiempoLRU} ($\rightarrow 0$).
+    \item \texttt{CacheAsociativa(int vias, int nBloques, int tBloque)}: Constructor que llama a la función \texttt{redimensionar}.
+    \item \texttt{accederDireccion(const string \&direccionBin)}: Implementa el Algoritmo de Acceso y Reemplazo LRU. Calcula el índice del conjunto ($\text{etiqueta} \bmod \text{numConjuntos}$). Si es acierto, actualiza \texttt{tiempoLRU}. Si es fallo, busca la vía con el \texttt{tiempoLRU} más bajo para reemplazar y actualiza el valor.
+\end{itemize}
+
+\subsection{\texttt{main.cpp}}
+Implementa el \textbf{Algoritmo de Selección de Caché y Simulación}. La lógica de selección es: si $\text{vias}=1$, usa \texttt{CacheDirecta}; si es mayor, usa \texttt{CacheAsociativa}. Incluye validación de entradas para parámetros positivos y para asegurar que el número de vías no exceda el número de bloques.
+
+\section{Análisis de Resultados}
+
+Se realizaron pruebas con entradas generadas aleatoriamente.
+
+\subsection{Comparativa de Rendimiento con 100.000 y 1.000.000 de Casos}
+\begin{longtable}{|p{2.5cm}|c|c|c|c|}
+\caption{Resultados con $\text{Bloques}=16$ y $\text{Palabras}=8$} \label{tab:comparativa} \\
+\hline
+\multirow{2}{*}{\textbf{Métrica}} & \textbf{Directa} & \multicolumn{3}{c|}{\textbf{Asociativa}} \\
+\cline{2-5}
+& \textbf{Vías=1} & \textbf{Vías=8} & \textbf{Vías=16} \\
+\hhline{|=|=|=|=|=|}
+\multicolumn{5}{|c|}{\textbf{100.000 Casos}} \\
+\hline
+Tiempo & $0,019s$ & $0,024s$ & $0,028s$ \\
+\hline
+Fallos & $50121$ & $49938$ & $50060$ \\
+\hline
+Aciertos & $49879$ & $50062$ & $49940$ \\
+\hline
+Tasa de Aciertos & $49.879\%$ & $50.062\%$ & $50.062\%$ \\
+\hline
+\multicolumn{5}{|c|}{\textbf{1.000.000 Casos}} \\
+\hline
+Tiempo & $0,178s$ & $0,228s$ & $0,267s$ \\
+\hline
+Fallos & $500920$ & $500341$ & $500323$ \\
+\hline
+Aciertos & $499080$ & $499659$ & $499677$ \\
+\hline
+Tasa de Aciertos & $49.908\%$ & $49.966\%$ & $49.968\%$ \\
+\hline
+\end{longtable}
+
+\paragraph{Observaciones}
+A mayor asociatividad, el porcentaje de aciertos tiende a ser mayor, pero el consumo de tiempo también se incrementa. La diferencia en el porcentaje de aciertos entre las distintas configuraciones (directa, asociativa y completamente asociativa) no es significativa.
+
+\subsection{Invariabilidad con Mayor Número de Bloques y Alto \% de Aciertos}
+En los siguientes ejemplos, la mejora en el porcentaje de aciertos es casi invariable a pesar de la asociatividad.
+
+\begin{longtable}{|p{1.5cm}|c|c|c|c|}
+\caption{Resultados con Alto Número de Bloques ($\text{1.000.000}$ Casos, $\text{Palabras}=8$)} \label{tab:invariabilidad} \\
+\hline
+\multirow{2}{*}{\textbf{Métrica}} & \multicolumn{2}{c|}{\textbf{Bloques=64}} & \multicolumn{2}{c|}{\textbf{Bloques=32}} \\
+\cline{2-5}
+& \textbf{Vías=1} (Directa) & \textbf{Vías=16} (Asociativa) & \textbf{Vías=1} (Directa) & \textbf{Vías=16} (Asociativa) \\
+\hhline{|=|=|=|=|=|}
+Tiempo & $0,166s$ & $0,19s$ & $0,163s$ & $0,205s$\\
+\hline
+Fallos & $32$ & $32$ & $32$  & $32$  \\
+\hline
+Aciertos & $999968$  & $999968$ & $999968$ & $999968$  \\
+\hline
+Tasa de Aciertos & $99.997\%$  & $99.997\%$  & $99.997\%$  & $99.997\%$  \\
+\hline
+\end{longtable}
+
+\section{Conclusión}
+Existen grandes diferencias entre el mapeo directo y el asociativo, tanto en resultados como en el proceso de ubicación de un bloque de caché.
+
+\subsection{Diferencia de Complejidad Algorítmica}
+\begin{itemize}
+    \item \textbf{Mapeo Directo}: Es sencillo y rápido de ejecutar. Implica calcular la etiqueta y su única ubicación. Si no coincide la etiqueta, hay un fallo y se reemplaza directamente. Esto representa un algoritmo de orden \textbf{$O(1)$}.
+    \item \textbf{Mapeo Asociativo}: Requiere encontrar la etiqueta y el índice del conjunto, además de encontrar la vía dentro del conjunto, lo que obliga a \textbf{iterar sobre todo el conjunto}. En caso de fallo, se recorre el conjunto para buscar el acceso más antiguo (LRU). Esto resulta en un algoritmo de orden \textbf{$O(n)$}, donde $n$ es el número de vías.
+    \item El mapeo asociativo es \textbf{mucho más costoso en tiempo} que el directo, especialmente si la caché es completamente asociativa y el número de bloques es grande.
+\end{itemize}
+
+\subsection{Tasa de Fallos y Flexibilidad}
+Aunque más costoso en tiempo, el mapeo asociativo tiende a tener un \textbf{menor índice de fallos}. Esto se debe a que es más flexible, permitiendo que direcciones con el mismo índice ocupen cualquier vía dentro de su conjunto, reduciendo los \textbf{conflictos en la memoria}.
+
+\subsection{Impacto de los Parámetros de Diseño}
+Además del método de direccionamiento, el \textbf{número de bloques} y el \textbf{tamaño del bloque} afectan la tasa de aciertos:
+\begin{itemize}
+    \item \textbf{Número de Bloques}: Un mayor número de bloques suele aumentar la tasa de aciertos. Sin embargo, si el tamaño de la caché es muy superior a los datos procesados, puede ser un desperdicio de potencia por una mejora marginal.
+    \item \textbf{Tamaño del Bloque}: Un bloque más grande mejora la \textbf{localidad espacial}, pero esto solo es beneficioso si los accesos siguientes siguen un patrón secuencial.
+\end{itemize}
+
+\section{Referencias Bibliográficas}
+\begin{itemize}
+    \item Patterson, D. A, y Hennessy, J. L. (2011) Estructura y diseño de computadores: La interfaz hardware/software (4ta ed.) Reverté.
+\end{itemize}
+
+\end{document}
